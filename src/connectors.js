@@ -14,21 +14,28 @@ import { AuthereumConnector } from "@web3-react/authereum-connector";
 const POLLING_INTERVAL = 12000;
 const RPC_URLS = {
   1: "https://mainnet.infura.io/v3/84842078b09946638c03157f83405213",
-  4: "https://rinkeby.infura.io/v3/84842078b09946638c03157f83405213"
+    4: "https://rinkeby.infura.io/v3/84842078b09946638c03157f83405213",
+    56: "https://bsc-dataseed.binance.org/"
 };
 
 export const injected = new InjectedConnector({
-  supportedChainIds: [1, 3, 4, 5, 42]
+    supportedChainIds: [56]
 });
 
 export const network = new NetworkConnector({
-  urls: { 1: RPC_URLS[1], 4: RPC_URLS[4] },
-  defaultChainId: 1,
+    urls: {56: RPC_URLS[56] },
+  defaultChainId: 56,
   pollingInterval: POLLING_INTERVAL
 });
 
 export const walletconnect = new WalletConnectConnector({
-  rpc: { 1: RPC_URLS[1] },
+    rpc: {
+        //1: RPC_URLS[1]
+        56: RPC_URLS[56],
+       
+       // 137:"https://polygon-rpc.com",
+    },
+    network: "binance",
   bridge: "https://bridge.walletconnect.org",
   qrcode: true,
   pollingInterval: POLLING_INTERVAL

